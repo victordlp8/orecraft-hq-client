@@ -55,5 +55,6 @@ overflow-checks = false
 rustflags = ["-C", "target-cpu=native"]
 
 [lib]
+name = "java_orecraft_hq_client"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
