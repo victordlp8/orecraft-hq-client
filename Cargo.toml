@@ -1,13 +1,14 @@
 [package]
-name = "ore-hq-client"
-version = "2.4.0"
+name = "orecraft-hq-client"
+version = "0.1.0"
 edition = "2021"
-description = "Ore mining pool client."
+description = "Ore mining pool client for Minecraft (Java), specifically ORECraft."
 license = "Apache-2.0"
-repository = "https://github.com/Kriptikz/ore-hq-client"
-keywords = ["solana", "crypto", "mining", "client", "mining-pool"]
+repository = "https://github.com/victordlp8/orecraft-hq-client"
+keywords = ["solana", "crypto", "mining", "client", "mining-pool", "java", "minecraft"]
 
 [dependencies]
+jni = "0.21.1"
 base64 = "0.22.1"
 bincode = "1.3.3"
 clap = { version = "4.5.13", features = ["derive"] }
@@ -52,3 +53,7 @@ overflow-checks = false
 
 [build]
 rustflags = ["-C", "target-cpu=native"]
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib"]
