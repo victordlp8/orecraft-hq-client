@@ -17,3 +17,7 @@ pub fn create_error_array(env: &mut JNIEnv) -> jdoubleArray {
     env.set_double_array_region(&error_array, 0, &error_values).expect("Couldn't set error array elements");
     return error_array.into_raw()
 }
+
+pub fn is_secure(url: &String) -> bool {
+    url.starts_with("https://") || url.starts_with("wss://")
+}

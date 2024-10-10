@@ -2,8 +2,8 @@ use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jdoubleArray, jstring};
 
-mod balance;
 mod libutils;
+mod balance;
 
 use crate::libutils::{read_keypair_from_file, create_error_array};
 
@@ -46,9 +46,9 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
     let (rewards, wallet_balance, staked_balance) = runtime.block_on(async {
         tokio::join!(
-            balance::get_rewards(&keypair, url.clone(), false),
-            balance::get_balance(&keypair, url.clone(), false),
-            balance::get_stake(&keypair, url, false)
+            balance::get_rewards(&keypair, &url),
+            balance::get_balance(&keypair, &url),
+            balance::get_stake(&keypair, &url)
         )
     });
 

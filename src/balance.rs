@@ -1,5 +1,6 @@
 use solana_sdk::{signature::Keypair, signer::Signer};
-use tokio::join;
+
+use crate::libutils::is_secure;
 
 #[derive(Debug)]
 pub enum BalanceType {
@@ -8,23 +9,23 @@ pub enum BalanceType {
     Stake,
 }
 
-pub async fn get_rewards(key: &Keypair, url: String, unsecure: bool) -> f64 {
-    get_balance_by_type(key, url, unsecure, BalanceType::Rewards).await
+pub async fn get_rewards(key: &Keypair, url: &String) -> f64 {
+    get_balance_by_type(key, url, BalanceType::Rewards).await
 }
 
-pub async fn get_balance(key: &Keypair, url: String, unsecure: bool) -> f64 {
-    get_balance_by_type(key, url, unsecure, BalanceType::Wallet).await
+pub async fn get_balance(key: &Keypair, url: &String) -> f64 {
+    get_balance_by_type(key, url, BalanceType::Wallet).await
 }
 
-pub async fn get_stake(key: &Keypair, url: String, unsecure: bool) -> f64 {
-    get_balance_by_type(key, url, unsecure, BalanceType::Stake).await
+pub async fn get_stake(key: &Keypair, url: &String) -> f64 {
+    get_balance_by_type(key, url, BalanceType::Stake).await
 }
 
-pub async fn balance(key: &Keypair, url: String, unsecure: bool) {
+pub async fn balance(key: &Keypair, url: &String) {
     let (rewards, balance, staked_balance) = tokio::join!(
-        get_rewards(key, url.clone(), unsecure),
-        get_balance(key, url.clone(), unsecure),
-        get_stake(key, url, unsecure)
+        get_rewards(key, url),
+        get_balance(key, url),
+        get_stake(key, url)
     );
 
     println!("  Unclaimed Rewards: {:.11} ORE", rewards);
@@ -32,9 +33,9 @@ pub async fn balance(key: &Keypair, url: String, unsecure: bool) {
     println!("  Staked Balance:    {:.11} ORE", staked_balance);
 }
 
-pub async fn get_balance_by_type(key: &Keypair, url: String, unsecure: bool, balance_type: BalanceType) -> f64 {
+pub async fn get_balance_by_type(key: &Keypair, url: &String, balance_type: BalanceType) -> f64 {
     let client = reqwest::Client::new();
-    let url_prefix = if unsecure { "http" } else { "https" };
+    let url_prefix = if is_secure(&url) { "https" } else { "http" };
 
     let endpoint = match balance_type {
         BalanceType::Wallet => "balance",

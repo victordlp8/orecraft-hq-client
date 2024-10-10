@@ -18,6 +18,7 @@ use semver::Version;
 use serde_json;
 use std::process::Command;
 
+mod libutils;
 mod balance;
 mod claim;
 mod delegate_stake;
@@ -673,7 +674,7 @@ async fn run_command(
             claim::claim(args, key, base_url, unsecure_conn).await;
         }
         Some(Commands::Balance) => {
-            balance(&key, base_url, unsecure_conn).await;
+            balance(&key, &base_url).await;
         }
         Some(Commands::Stake(args)) => {
             delegate_stake::delegate_stake(args, key, base_url, unsecure_conn).await;
@@ -790,12 +791,12 @@ async fn run_command(
                         claim::claim(args, key, base_url, unsecure_conn).await;
                     }
                     "  View Balances" => {
-                        balance(&key, base_url.clone(), unsecure_conn).await;
+                        balance(&key, &base_url).await;
                         println!();
                         earnings::earnings(); // Display earnings after balance
                     }
                     "  Stake" => {
-                        balance(&key, base_url.clone(), unsecure_conn).await;
+                        balance(&key, &base_url).await;
 
                         loop {
                             let stake_input = Text::new(
