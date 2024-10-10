@@ -30,7 +30,7 @@ pub async fn delegate_stake(args: StakeArgs, key: Keypair, url: String, unsecure
     } else {
         "https".to_string()
     };
-    let balance = get_balance(&key, base_url.clone(), unsecure).await;
+    let balance = get_balance(&key, &base_url).await;
 
     // Ensure stake amount does not exceed balance
     let stake_amount = if args.amount > balance {
