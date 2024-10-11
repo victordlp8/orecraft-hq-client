@@ -1,7 +1,7 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jdoubleArray, jstring};
-use solana_sdk::signature::read_keypair_file;
+use solana_sdk::signature::{read_keypair_file, Keypair};
 
 mod libutils;
 mod balance;
@@ -30,52 +30,34 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     keypair_path: JString<'local>,
     pool_url: JString<'local>
 ) -> jdoubleArray {
-    // Convert JNI parameters to Rust types
-    let keypair_path: String = match env.get_string(&keypair_path) {
-        Ok(s) => s.into(),
-        Err(_) => return create_error_array(&mut env),
-    };
-    let pool_url: String = match env.get_string(&pool_url) {
-        Ok(s) => s.into(),
-        Err(_) => return create_error_array(&mut env),
-    };
+    let keypair_path: String = env.get_string(&keypair_path).expect("Couldn't get Java string!").into();
+    let pool_url: String = env.get_string(&pool_url).expect("Couldn't get Java string!").into();
 
-    // Read keypair from file
     let keypair = match read_keypair_file(&keypair_path) {
         Ok(kp) => kp,
         Err(_) => return create_error_array(&mut env),
     };
 
-    // Call the balance functions asynchronously
-    let runtime = match tokio::runtime::Runtime::new() {
-        Ok(rt) => rt,
-        Err(_) => return create_error_array(&mut env),
-    };
-    
-    let (rewards, wallet_balance, staked_balance) = runtime.block_on(async {
-        tokio::join!(
-            balance::get_rewards(&keypair, &pool_url),
-            balance::get_balance(&keypair, &pool_url),
-            balance::get_stake(&keypair, &pool_url)
-        )
-    });
+    let rewards = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
+    let wallet_balance = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
+    let staked_balance = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
 
-    // Check if any of the balance functions returned an error
-    if rewards < 0.0 || wallet_balance < 0.0 || staked_balance < 0.0 {
-        return create_error_array(&mut env);
-    }
-
-    // Create a Java double array to hold the results
-    let result = match env.new_double_array(3) {
-        Ok(arr) => arr,
-        Err(_) => return create_error_array(&mut env),
-    };
-
-    // Convert Rust f64 to Java double and set array elements
+    let result = env.new_double_array(3).expect("Couldn't create Java array");
     let values = [rewards, wallet_balance, staked_balance];
-    if let Err(_) = env.set_double_array_region(&result, 0, &values) {
-        return create_error_array(&mut env);
-    }
+    env.set_double_array_region(&result, 0, &values).expect("Couldn't set array region");
 
     result.into_raw()
+}
+
+fn get_balance_internal(env: &mut JNIEnv, keypair: &Keypair, pool_url: &str) -> Result<f64, Box<dyn std::error::Error>> {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let balance = runtime.block_on(async {
+        match pool_url.split('/').last() {
+            Some("rewards") => balance::get_rewards(keypair, &pool_url.to_string()).await,
+            Some("stake") => balance::get_stake(keypair, &pool_url.to_string()).await,
+            _ => balance::get_balance(keypair, &pool_url.to_string()).await,
+        }
+    });
+    
+    Ok(balance)
 }
