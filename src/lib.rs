@@ -27,11 +27,11 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     keypair_path: JString<'local>,
-    url: JString<'local>
+    pool_url: JString<'local>
 ) -> jdoubleArray {
     // Convert JNI parameters to Rust types
     let keypair_path: String = env.get_string(&keypair_path).expect("Couldn't get keypair path!").into();
-    let url: String = env.get_string(&url).expect("Couldn't get URL!").into();
+    let pool_url: String = env.get_string(&pool_url).expect("Couldn't get URL!").into();
 
     // Read keypair from file
     let keypair = match read_keypair_from_file(&keypair_path) {
@@ -46,9 +46,9 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
     let (rewards, wallet_balance, staked_balance) = runtime.block_on(async {
         tokio::join!(
-            balance::get_rewards(&keypair, &url),
-            balance::get_balance(&keypair, &url),
-            balance::get_stake(&keypair, &url)
+            balance::get_rewards(&keypair, &pool_url),
+            balance::get_balance(&keypair, &pool_url),
+            balance::get_stake(&keypair, &pool_url)
         )
     });
 
