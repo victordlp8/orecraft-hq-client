@@ -6,6 +6,8 @@ use solana_sdk::signature::read_keypair_file;
 mod libutils;
 mod balance;
 
+use libutils::create_error_array;
+
 #[no_mangle]
 pub extern "system" fn Java_industries_dlp8_rust_RustBridge_helloRust<'local>(mut env: JNIEnv<'local>, _class: JClass<'local>, name: JString<'local>) -> jstring {
     // Convert the Java String to a Rust String
@@ -29,17 +31,27 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     pool_url: JString<'local>
 ) -> jdoubleArray {
     // Convert JNI parameters to Rust types
-    let keypair_path: String = env.get_string(&keypair_path).expect("Couldn't get keypair path!").into();
-    let pool_url: String = env.get_string(&pool_url).expect("Couldn't get URL!").into();
+    let keypair_path: String = match env.get_string(&keypair_path) {
+        Ok(s) => s.into(),
+        Err(_) => return create_error_array(&mut env),
+    };
+    let pool_url: String = match env.get_string(&pool_url) {
+        Ok(s) => s.into(),
+        Err(_) => return create_error_array(&mut env),
+    };
 
     // Read keypair from file
-    let keypair = read_keypair_file(&keypair_path).expect(&format!(
-        "Failed to load keypair from file: {}",
-        keypair_path
-    ));
+    let keypair = match read_keypair_file(&keypair_path) {
+        Ok(kp) => kp,
+        Err(_) => return create_error_array(&mut env),
+    };
 
     // Call the balance functions asynchronously
-    let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return create_error_array(&mut env),
+    };
+    
     let (rewards, wallet_balance, staked_balance) = runtime.block_on(async {
         tokio::join!(
             balance::get_rewards(&keypair, &pool_url),
@@ -48,12 +60,22 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
         )
     });
 
+    // Check if any of the balance functions returned an error
+    if rewards < 0.0 || wallet_balance < 0.0 || staked_balance < 0.0 {
+        return create_error_array(&mut env);
+    }
+
     // Create a Java double array to hold the results
-    let result = env.new_double_array(3).expect("Couldn't create new double array");
+    let result = match env.new_double_array(3) {
+        Ok(arr) => arr,
+        Err(_) => return create_error_array(&mut env),
+    };
 
     // Convert Rust f64 to Java double and set array elements
     let values = [rewards, wallet_balance, staked_balance];
-    env.set_double_array_region(&result, 0, &values).expect("Couldn't set array elements");
+    if let Err(_) = env.set_double_array_region(&result, 0, &values) {
+        return create_error_array(&mut env);
+    }
 
-    return result.into_raw()
+    result.into_raw()
 }
