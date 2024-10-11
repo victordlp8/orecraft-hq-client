@@ -1,6 +1,6 @@
 use solana_sdk::{signature::Keypair, signer::Signer};
 
-use crate::libutils::is_secure;
+use crate::libutils::{is_secure, url_trimming};
 
 #[derive(Debug)]
 pub enum BalanceType {
@@ -36,7 +36,8 @@ pub async fn balance(key: &Keypair, url: &String) {
 pub async fn get_balance_by_type(key: &Keypair, url: &String, balance_type: BalanceType) -> f64 {
     let client = reqwest::Client::new();
     let url_prefix = if is_secure(&url) { "https" } else { "http" };
-
+    let trimmed_url = url_trimming(&url);
+    
     let endpoint = match balance_type {
         BalanceType::Wallet => "balance",
         BalanceType::Rewards => "rewards",
@@ -47,7 +48,7 @@ pub async fn get_balance_by_type(key: &Keypair, url: &String, balance_type: Bala
         .get(format!(
             "{}://{}/miner/{}?pubkey={}",
             url_prefix,
-            url,
+            trimmed_url,
             endpoint,
             key.pubkey().to_string()
         ))
