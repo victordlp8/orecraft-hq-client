@@ -1,11 +1,10 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jdoubleArray, jstring};
+use solana_sdk::signature::read_keypair_file;
 
 mod libutils;
 mod balance;
-
-use crate::libutils::{read_keypair_from_file, create_error_array};
 
 #[no_mangle]
 pub extern "system" fn Java_industries_dlp8_rust_RustBridge_helloRust<'local>(mut env: JNIEnv<'local>, _class: JClass<'local>, name: JString<'local>) -> jstring {
@@ -34,13 +33,10 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
     let pool_url: String = env.get_string(&pool_url).expect("Couldn't get URL!").into();
 
     // Read keypair from file
-    let keypair = match read_keypair_from_file(&keypair_path) {
-        Ok(kp) => kp,
-        Err(e) => {
-            eprintln!("Failed to read keypair: {}", e);
-            return create_error_array(&mut env);
-        }
-    };
+    let keypair = read_keypair_file(&keypair_path).expect(&format!(
+        "Failed to load keypair from file: {}",
+        keypair_path
+    ));
 
     // Call the balance functions asynchronously
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
