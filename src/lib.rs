@@ -1,10 +1,11 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jdoubleArray, jstring};
-use solana_sdk::signature::{read_keypair_file, Keypair};
+use solana_sdk::signature::read_keypair_file;
+use tokio::runtime::Runtime;
 
-mod libutils;
 mod balance;
+mod libutils;
 
 use libutils::create_error_array;
 
@@ -38,26 +39,17 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
         Err(_) => return create_error_array(&mut env),
     };
 
-    let rewards = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
-    let wallet_balance = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
-    let staked_balance = get_balance_internal(&mut env, &keypair, &pool_url).unwrap_or(-1.0);
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+
+    let balances = runtime.block_on(async {
+        let rewards = balance::get_rewards(&keypair, &pool_url).await;
+        let wallet_balance = balance::get_balance(&keypair, &pool_url).await;
+        let staked_balance = balance::get_stake(&keypair, &pool_url).await;
+        [rewards, wallet_balance, staked_balance]
+    });
 
     let result = env.new_double_array(3).expect("Couldn't create Java array");
-    let values = [rewards, wallet_balance, staked_balance];
-    env.set_double_array_region(&result, 0, &values).expect("Couldn't set array region");
+    env.set_double_array_region(&result, 0, &balances).expect("Couldn't set array region");
 
     result.into_raw()
-}
-
-fn get_balance_internal(env: &mut JNIEnv, keypair: &Keypair, pool_url: &str) -> Result<f64, Box<dyn std::error::Error>> {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let balance = runtime.block_on(async {
-        match pool_url.split('/').last() {
-            Some("rewards") => balance::get_rewards(keypair, &pool_url.to_string()).await,
-            Some("stake") => balance::get_stake(keypair, &pool_url.to_string()).await,
-            _ => balance::get_balance(keypair, &pool_url.to_string()).await,
-        }
-    });
-    
-    Ok(balance)
 }
