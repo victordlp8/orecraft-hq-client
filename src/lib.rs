@@ -1,13 +1,13 @@
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
-use jni::sys::{jdoubleArray, jstring};
+use jni::sys::jstring;
 use solana_sdk::signature::read_keypair_file;
 use tokio::runtime::Runtime;
 
 mod balance;
 mod libutils;
 
-use libutils::create_error_array;
+use libutils::create_error_string;
 
 #[no_mangle]
 pub extern "system" fn Java_industries_dlp8_rust_RustBridge_helloRust<'local>(mut env: JNIEnv<'local>, _class: JClass<'local>, name: JString<'local>) -> jstring {
@@ -25,21 +25,30 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_helloRust<'local>(mu
 }
 
 #[no_mangle]
-pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
+pub extern "system" fn Java_industries_dlp8_rust_RustBridge_balancesOutput<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
     keypair_path: JString<'local>,
-    pool_url: JString<'local>
-) -> jdoubleArray {
-    let keypair_path: String = env.get_string(&keypair_path).expect("Couldn't get Java string!").into();
-    let pool_url: String = env.get_string(&pool_url).expect("Couldn't get Java string!").into();
+    pool_url: JString<'local>,
+) -> jstring {
+    let keypair_path: String = match env.get_string(&keypair_path) {
+        Ok(s) => s.into(),
+        Err(_) => return create_error_string(&mut env),
+    };
+    let pool_url: String = match env.get_string(&pool_url) {
+        Ok(s) => s.into(),
+        Err(_) => return create_error_string(&mut env),
+    };
 
     let keypair = match read_keypair_file(&keypair_path) {
         Ok(kp) => kp,
-        Err(_) => return create_error_array(&mut env),
+        Err(_) => return create_error_string(&mut env),
     };
 
-    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    let runtime = match Runtime::new() {
+        Ok(rt) => rt,
+        Err(_) => return create_error_string(&mut env),
+    };
 
     let balances = runtime.block_on(async {
         let rewards = balance::get_rewards(&keypair, &pool_url).await;
@@ -48,8 +57,20 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_getBalances<'local>(
         [rewards, wallet_balance, staked_balance]
     });
 
-    let result = env.new_double_array(3).expect("Couldn't create Java array");
-    env.set_double_array_region(&result, 0, &balances).expect("Couldn't set array region");
+    // Explicitly shut down the runtime
+    runtime.shutdown_timeout(std::time::Duration::from_secs(1));
 
-    result.into_raw()
+    let result_string = format!("{},{},{}", balances[0], balances[1], balances[2]);
+
+    // Convert the Rust String to a Java String
+    let output = match env.new_string(result_string) {
+        Ok(s) => s,
+        Err(_) => {
+            let error_message = "Error creating Java string";
+            env.new_string(error_message).expect("Couldn't create error string")
+        }
+    };
+
+    // Return the Java String
+    output.into_raw()
 }

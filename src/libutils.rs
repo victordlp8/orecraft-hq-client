@@ -1,14 +1,9 @@
-use std::fs::File;
-use std::io::Read;
-use solana_sdk::signature::Keypair;
 use jni::JNIEnv;
-use jni::sys::jdoubleArray;
+use jni::sys::jstring;
 
-pub fn create_error_array(env: &mut JNIEnv) -> jdoubleArray {
-    let error_array = env.new_double_array(3).expect("Couldn't create error array");
-    let error_values = [-1.0, -1.0, -1.0];
-    env.set_double_array_region(&error_array, 0, &error_values).expect("Couldn't set error array elements");
-    return error_array.into_raw()
+pub fn create_error_string(env: &mut JNIEnv) -> jstring {
+    let error_string = env.new_string("-1.0,-1.0,-1.0").expect("Couldn't create error string");
+    error_string.into_raw()
 }
 
 pub fn url_trimming(url: &String) -> String {
