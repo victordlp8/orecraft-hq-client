@@ -37,7 +37,7 @@ pub async fn get_balance_by_type(key: &Keypair, url: &String, balance_type: Bala
     let client = reqwest::Client::new();
     let url_prefix = if is_secure(&url) { "https" } else { "http" };
     let trimmed_url = url_trimming(&url);
-    
+
     let endpoint = match balance_type {
         BalanceType::Wallet => "balance",
         BalanceType::Rewards => "rewards",
