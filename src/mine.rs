@@ -30,6 +30,7 @@ use tokio_tungstenite::{
 };
 
 use crate::database::{AppDatabase, PoolSubmissionResult};
+use crate::libutils::is_secure;
 
 #[derive(Debug)]
 pub struct ServerMessagePoolSubmissionResult {
@@ -211,9 +212,10 @@ pub struct MineArgs {
     pub buffer: u32,
 }
 
-pub async fn mine(args: MineArgs, key: Keypair, url: String, unsecure: bool) {
+pub async fn mine(args: MineArgs, key: Keypair, url: String) {
     let running = Arc::new(AtomicBool::new(true));
     let key = Arc::new(key);
+    let unsecure = !is_secure(&url);
 
     loop {
         if !running.load(Ordering::SeqCst) {
