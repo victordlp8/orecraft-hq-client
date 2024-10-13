@@ -1,4 +1,5 @@
 use base64::prelude::*;
+use chrono;
 use clap::{arg, Parser};
 use drillx_2::equix;
 use futures_util::stream::SplitSink;
@@ -263,7 +264,13 @@ pub async fn mine(args: MineArgs, key: Keypair, url: String, unsecure: bool) {
             }
         };
 
-        println!("Server Timestamp: {}", timestamp);
+        // Format the timestamp to be human-readable
+        let formatted_timestamp = chrono::DateTime::from_timestamp(timestamp as i64, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| "Invalid timestamp".to_string());
+        if verbose {
+            println!("Server Timestamp: {}", formatted_timestamp);
+        }
 
         let ts_msg = timestamp.to_le_bytes();
         let sig = key.sign_message(&ts_msg);
