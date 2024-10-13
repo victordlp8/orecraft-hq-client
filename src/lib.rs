@@ -1,14 +1,8 @@
-use crate::libutils::{is_secure, url_trimming};
-use crate::mine::{mine, MineArgs};
 use jni::objects::{JClass, JString};
-use jni::sys::{jboolean, jint, jlong, jstring};
+use jni::sys::jstring;
 use jni::JNIEnv;
-use solana_sdk::signature::{read_keypair_file, Keypair};
-use std::sync::Arc;
-use std::thread;
+use solana_sdk::signature::read_keypair_file;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc as tokio_mpsc;
-use tokio::sync::Mutex;
 
 mod balance;
 mod database;
@@ -52,18 +46,4 @@ pub extern "system" fn Java_industries_dlp8_rust_RustBridge_balancesOutput<'loca
     env.new_string(result_string).unwrap_or_else(|_| {
         env.new_string("Error creating Java string").expect("Couldn't create error string")
     }).into_raw()
-}
-
-
-    // Convert the Rust String to a Java String
-    let output = match env.new_string(result_string) {
-        Ok(s) => s,
-        Err(_) => {
-            let error_message = "Error creating Java string";
-            env.new_string(error_message).expect("Couldn't create error string")
-        }
-    };
-
-    // Return the Java String
-    output.into_raw()
 }
